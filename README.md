@@ -117,7 +117,7 @@ Verifierat i denna leverans:
 
 - lint: godkänd utan varningar
 - strikt TypeScript: godkänd
-- 33 enhetstester: godkända
+- 34 enhetstester: godkända
 - Next.js produktionsbyggnad: godkänd, 42 app-rutter
 - produktionsdependency-audit: 0 kända sårbarheter
 - HTTP-smoke: landningssida, hem, health, vanlig ritual, akut säkerhetsritual, favoriter, rapport och kontoradering: godkända

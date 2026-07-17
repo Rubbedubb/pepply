@@ -23,7 +23,7 @@ Ingen funktion ska beskrivas som färdig om den kräver en adapter eller extern 
 | Kontoradering | Fungerar | UI-bekräftelse + permanent Supabase Auth-radering och FK-cascade |
 | Databas/RLS | Fungerar som migration | Schema, policyer, index, retention, streak-/milstolpstriggers |
 | PWA | Fungerar | Manifest, ikoner, service worker, offlinevy |
-| Enhetstest/build | Fungerar | 33 tester, lint, strikt TypeScript, HTTP-smoke och produktionsbuild godkända |
+| Enhetstest/build | Fungerar | 34 tester, lint, strikt TypeScript, HTTP-smoke och produktionsbuild godkända |
 
 ## Integrationsklara men kräver nycklar/drift
 
