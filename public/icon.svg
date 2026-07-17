@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pepply">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD77E"/>
+      <stop offset="1" stop-color="#E89120"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="132" fill="#FFF8E7"/>
+  <circle cx="256" cy="246" r="132" fill="url(#g)"/>
+  <path d="M191 262c20 31 43 46 69 46 28 0 52-16 71-48" fill="none" stroke="#5F431A" stroke-width="25" stroke-linecap="round"/>
+  <circle cx="205" cy="213" r="13" fill="#5F431A"/>
+  <circle cx="307" cy="213" r="13" fill="#5F431A"/>
+  <path d="M256 74v-26M126 126l-19-19M386 126l19-19M438 246h26M48 246h26" stroke="#E89120" stroke-width="20" stroke-linecap="round"/>
+</svg>
