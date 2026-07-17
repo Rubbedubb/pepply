@@ -4,6 +4,7 @@ const concernPatterns = [
   /\bsjälvmord\b/i,
   /\bsuicid/i,
   /\bta livet av (mig|mej)\b/i,
+  /\bta mitt (eget )?liv\b/i,
   /\b(vill|orkar)( jag)? inte leva(?=$|[\s.,!?;:])/iu,
   /\b(vill|önskar) (att jag vore|vara) död(?=$|[\s.,!?;:])/iu,
   /\b(vill jag|jag vill) inte dö(?=$|[\s.,!?;:])/iu,
@@ -14,6 +15,7 @@ const concernPatterns = [
 
 const intentPatterns = [
   /\bjag (ska|kommer|tänker) (ta livet av|döda|skada|göra illa) (mig|mej)\b/i,
+  /\bjag (ska|kommer|tänker) ta mitt (eget )?liv\b/i,
   /\bjag har (en )?(konkret )?plan\b/i,
   /\bjag har bestämt (mig|mej)\b/i,
   /\b(i kväll|ikväll|i natt|inatt|nu|snart)\b/i,

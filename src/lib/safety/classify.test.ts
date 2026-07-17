@@ -19,6 +19,12 @@ describe("classifySafety", () => {
     expect(result.reasons).toContain("possible_immediacy_or_plan");
   });
 
+  it("recognizes immediate intent phrased as taking my life", () => {
+    const result = classifySafety("Jag tänker ta mitt liv nu");
+    expect(result.level).toBe("urgent");
+    expect(result.shouldBypassGeneration).toBe(true);
+  });
+
   it("detects an explicit negation and avoids urgent classification", () => {
     const result = classifySafety("Jag vill inte dö, men tanken skrämde mig");
     expect(result.level).toBe("concern");
