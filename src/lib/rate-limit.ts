@@ -10,25 +10,30 @@ interface Bucket {
 
 const localBuckets = new Map<string, Bucket>();
 
-export async function enforceRateLimit(options: {
+interface RateLimitOptions {
   key: string;
   action: string;
   limit: number;
   windowSeconds: number;
-}): Promise<void> {
+}
+
+export async function tryConsumeRateLimit(
+  options: RateLimitOptions,
+): Promise<boolean> {
   if (isDemoMode || !isSupabaseConfigured) {
     const now = Date.now();
-    const current = localBuckets.get(options.key);
+    const bucketKey = `${options.key}:${options.action}`;
+    const current = localBuckets.get(bucketKey);
     if (!current || current.resetAt <= now) {
-      localBuckets.set(options.key, {
+      localBuckets.set(bucketKey, {
         count: 1,
         resetAt: now + options.windowSeconds * 1000,
       });
-      return;
+      return true;
     }
-    if (current.count >= options.limit) throw new Error("RATE_LIMITED");
+    if (current.count >= options.limit) return false;
     current.count += 1;
-    return;
+    return true;
   }
 
   const supabase = await createClient();
@@ -40,5 +45,13 @@ export async function enforceRateLimit(options: {
   });
 
   if (error) throw error;
-  if (data !== true) throw new Error("RATE_LIMITED");
+  return data === true;
+}
+
+export async function enforceRateLimit(
+  options: RateLimitOptions,
+): Promise<void> {
+  if (!(await tryConsumeRateLimit(options))) {
+    throw new Error("RATE_LIMITED");
+  }
 }

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { generateChatReply } from "@/lib/ai/service";
+import { isCloudflareAiConfigured, serverEnv } from "@/lib/env";
 import { apiError } from "@/lib/http";
-import { enforceRateLimit } from "@/lib/rate-limit";
+import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { getRequestUser, isRequestDemo } from "@/lib/request-user";
+import { classifySafety } from "@/lib/safety/classify";
 import { createClient } from "@/lib/supabase/server";
 import { chatInputSchema } from "@/lib/validation";
 
@@ -10,12 +12,16 @@ export async function POST(request: Request) {
   try {
     const user = await getRequestUser();
     const input = chatInputSchema.parse(await request.json());
-    await enforceRateLimit({
-      key: `${user.id}:chat`,
-      action: "chat_message",
-      limit: 20,
-      windowSeconds: 86_400,
-    });
+    const safety = classifySafety(input.message);
+    let allowAi = safety.level === "none";
+    if (allowAi && isCloudflareAiConfigured) {
+      allowAi = await tryConsumeRateLimit({
+        key: `${user.id}:ai`,
+        action: "ai_generation",
+        limit: serverEnv.AI_DAILY_USER_LIMIT,
+        windowSeconds: 86_400,
+      });
+    }
 
     let recentMessages: Array<{
       role: "user" | "assistant";
@@ -38,11 +44,14 @@ export async function POST(request: Request) {
         ) as typeof recentMessages;
     }
 
-    const result = await generateChatReply({
-      message: input.message,
-      turnCount: input.turnCount,
-      recentMessages,
-    });
+    const result = await generateChatReply(
+      {
+        message: input.message,
+        turnCount: input.turnCount,
+        recentMessages,
+      },
+      { allowAi },
+    );
 
     let conversationId = input.conversationId ?? crypto.randomUUID();
     if (!isRequestDemo()) {

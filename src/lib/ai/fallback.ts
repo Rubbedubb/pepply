@@ -26,3 +26,9 @@ export function getFallbackPepp(input: RitualInput): GeneratedPepp {
     safetyLevel: "none",
   };
 }
+
+export function getFallbackChatReply(turnCount: number): string {
+  return turnCount >= 4
+    ? "Det låter som att du redan har ringat in vad som tar mest plats. Välj gärna ett litet nästa steg, skriv ned det och låt samtalet sluta där för stunden."
+    : "Vi kan göra det mindre. Vad är den enda del av situationen som känns viktigast att reda ut just nu?";
+}

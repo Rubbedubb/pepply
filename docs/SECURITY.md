@@ -47,10 +47,11 @@
 
 - Användartext läggs som data i en separat promptdel, inte som systeminstruktion.
 - Systemprompt och leverantörsnyckel finns bara server-side.
+- Cloudflare-konto-ID och API-token saknar `NEXT_PUBLIC_`-prefix och importeras bara i `server-only`-moduler.
 - Kontexten är begränsad; full profil och full historik skickas aldrig som standard.
 - Utdatafilter blockerar beroendespråk, falska löften, diagnoser och medicinråd.
 - AI får inte använda verktyg eller hämta extern information i ritualen.
-- Reservmeddelanden täcker leverantörsfel och underkänd utdata.
+- Reservmeddelanden täcker saknad konfiguration, Pepplys dagsgräns, Cloudflares fria dagskvot, leverantörsfel och underkänd utdata.
 
 ### Krisflöde
 
@@ -78,7 +79,7 @@
 | Emotionell annonsprofil | schemat saknar sådana fält; aggregerade event | Framtida analytics kan återinföra risk |
 | Community publicerar skada | lokala regler + leverantörsmoderering, obligatorisk manuell kö, rapport, disable | Moderatorfel och köfördröjning |
 | Kontoradering lämnar data | FK cascade + export/delete-test | Leverantörsbackuper och rättslig retention |
-| DDoS/kostnadschock | rate limit, dagskvot, max tokens, fallback | Distribuerade konton/IP-angrepp |
+| DDoS/kostnadschock | tre AI-försök/användare/dygn, max tokens, fallback, Workers Free som globalt stopp | Demogränsen är per webbläsare/serverinstans; distribuerade klienter kan förbruka den fria Cloudflare-kvoten men inte skapa överdebitering utan separat planuppgradering |
 
 ## Säkerhetstest före lansering
 
