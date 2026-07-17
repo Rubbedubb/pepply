@@ -1,9 +1,10 @@
 import "server-only";
 
-import { getFallbackPepp } from "@/lib/ai/fallback";
-import { OpenAiProvider } from "@/lib/ai/openai-provider";
+import { CloudflareAiProvider } from "@/lib/ai/cloudflare-provider";
+import { getFallbackChatReply, getFallbackPepp } from "@/lib/ai/fallback";
+import type { AiProvider } from "@/lib/ai/provider";
 import { RITUAL_PROMPT_VERSION } from "@/lib/ai/prompts";
-import { isDemoMode, serverEnv } from "@/lib/env";
+import { isCloudflareAiConfigured, serverEnv } from "@/lib/env";
 import { classifySafety, validateGeneratedMessage } from "@/lib/safety/classify";
 import type { GeneratedPepp, RitualInput } from "@/lib/types";
 
@@ -13,8 +14,29 @@ export interface RitualGenerationResult extends GeneratedPepp {
   safetyReasons?: string[];
 }
 
+function createAiProvider(): AiProvider | null {
+  if (
+    isCloudflareAiConfigured &&
+    serverEnv.CLOUDFLARE_ACCOUNT_ID &&
+    serverEnv.CLOUDFLARE_API_TOKEN
+  ) {
+    return new CloudflareAiProvider(
+      serverEnv.CLOUDFLARE_ACCOUNT_ID,
+      serverEnv.CLOUDFLARE_API_TOKEN,
+      serverEnv.CLOUDFLARE_AI_MODEL,
+    );
+  }
+
+  return null;
+}
+
+interface GenerationOptions {
+  allowAi?: boolean;
+}
+
 export async function generateRitualMessage(
   input: RitualInput,
+  options: GenerationOptions = {},
 ): Promise<RitualGenerationResult> {
   const assessment = classifySafety(`${input.mood}\n${input.note ?? ""}`);
 
@@ -32,12 +54,16 @@ export async function generateRitualMessage(
     };
   }
 
-  if (isDemoMode || !serverEnv.OPENAI_API_KEY) {
-    return getFallbackPepp(input);
+  if (options.allowAi === false) {
+    return { ...getFallbackPepp(input), provider: "fallback-daily-limit" };
+  }
+
+  const provider = createAiProvider();
+  if (!provider) {
+    return { ...getFallbackPepp(input), provider: "fallback-not-configured" };
   }
 
   try {
-    const provider = new OpenAiProvider(serverEnv.OPENAI_API_KEY);
     const result = await provider.generateRitualMessage(input);
     const validation = validateGeneratedMessage(result.text);
 
@@ -59,11 +85,14 @@ export async function generateRitualMessage(
   }
 }
 
-export async function generateChatReply(input: {
-  message: string;
-  turnCount: number;
-  recentMessages?: Array<{ role: "user" | "assistant"; content: string }>;
-}) {
+export async function generateChatReply(
+  input: {
+    message: string;
+    turnCount: number;
+    recentMessages?: Array<{ role: "user" | "assistant"; content: string }>;
+  },
+  options: GenerationOptions = {},
+) {
   const safety = classifySafety(input.message);
   if (safety.level !== "none") {
     return {
@@ -76,27 +105,44 @@ export async function generateChatReply(input: {
     };
   }
 
-  if (isDemoMode || !serverEnv.OPENAI_API_KEY) {
+  if (options.allowAi === false) {
     return {
-      text:
-        input.turnCount >= 4
-          ? "Det låter som att du redan har ringat in vad som tar mest plats. Välj gärna ett litet nästa steg, skriv ned det och låt samtalet sluta där för stunden."
-          : "Vi kan göra det mindre. Vad är den enda del av situationen som känns viktigast att reda ut just nu?",
+      text: getFallbackChatReply(input.turnCount),
       safetyLevel: "none" as const,
-      provider: "fallback",
+      provider: "fallback-daily-limit",
     };
   }
 
-  const provider = new OpenAiProvider(serverEnv.OPENAI_API_KEY);
-  const result = await provider.generateChatReply(input);
-  const validation = validateGeneratedMessage(result.text);
-  if (!validation.safe) {
+  const provider = createAiProvider();
+  if (!provider) {
     return {
-      text: "Vi kan stanna upp här. Vad skulle vara ett litet och realistiskt nästa steg som inte behöver lösa allt?",
+      text: getFallbackChatReply(input.turnCount),
       safetyLevel: "none" as const,
-      provider: "fallback-output-guard",
+      provider: "fallback-not-configured",
     };
   }
 
-  return { text: result.text, safetyLevel: "none" as const, provider: result.provider };
+  try {
+    const result = await provider.generateChatReply(input);
+    const validation = validateGeneratedMessage(result.text);
+    if (!validation.safe) {
+      return {
+        text: "Vi kan stanna upp här. Vad skulle vara ett litet och realistiskt nästa steg som inte behöver lösa allt?",
+        safetyLevel: "none" as const,
+        provider: "fallback-output-guard",
+      };
+    }
+
+    return {
+      text: result.text,
+      safetyLevel: "none" as const,
+      provider: result.provider,
+    };
+  } catch {
+    return {
+      text: getFallbackChatReply(input.turnCount),
+      safetyLevel: "none" as const,
+      provider: "fallback-provider-error",
+    };
+  }
 }

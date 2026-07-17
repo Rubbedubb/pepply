@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { generateRitualMessage } from "@/lib/ai/service";
-import { serverEnv } from "@/lib/env";
+import { isCloudflareAiConfigured, serverEnv } from "@/lib/env";
 import { apiError } from "@/lib/http";
 import { logServerError } from "@/lib/logger";
-import { enforceRateLimit } from "@/lib/rate-limit";
+import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { getRequestUser, isRequestDemo } from "@/lib/request-user";
 import { createClient } from "@/lib/supabase/server";
+import { classifySafety } from "@/lib/safety/classify";
 import { supportAreas, toneOptions, type RitualInput } from "@/lib/types";
 import { ritualInputSchema } from "@/lib/validation";
 
@@ -19,13 +20,16 @@ export async function POST(request: Request) {
   try {
     const user = await getRequestUser();
     const input = ritualInputSchema.parse(await request.json());
-
-    await enforceRateLimit({
-      key: `${user.id}:ritual`,
-      action: "ritual_generation",
-      limit: serverEnv.AI_DAILY_USER_LIMIT,
-      windowSeconds: 86_400,
-    });
+    const safety = classifySafety(`${input.mood}\n${input.note ?? ""}`);
+    let allowAi = safety.level === "none";
+    if (allowAi && isCloudflareAiConfigured) {
+      allowAi = await tryConsumeRateLimit({
+        key: `${user.id}:ai`,
+        action: "ai_generation",
+        limit: serverEnv.AI_DAILY_USER_LIMIT,
+        windowSeconds: 86_400,
+      });
+    }
 
     const demoMode = isRequestDemo();
     const supabase = demoMode ? null : await createClient();
@@ -134,7 +138,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const result = await generateRitualMessage(effectiveInput);
+    const result = await generateRitualMessage(effectiveInput, { allowAi });
     let messageId = crypto.randomUUID();
 
     if (supabase) {

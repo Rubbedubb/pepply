@@ -14,7 +14,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Öppna `http://localhost:3000`. `.env.example` startar ett tydligt lokalt demoläge. Demoläget använder granskade reservmeddelanden och webbläsarens lokala lagring för att göra flöden klickbara; det ska aldrig aktiveras i produktion.
+Öppna `http://localhost:3000`. `.env.example` startar ett tydligt demoläge. Demoläget använder webbläsarens lokala lagring och kan köras publikt under den kostnadsfria första betan, men är inte samma sak som ett färdigt produktionsläge med riktiga konton och datalagring.
 
 Viktigaste sidorna:
 
@@ -53,7 +53,11 @@ RLS är aktiverat på samtliga tabeller. UI-döljning är aldrig enda behörighe
 
 ### 2. AI
 
-Sätt `OPENAI_API_KEY` och vid behov `OPENAI_MODEL`. Standardadaptern använder OpenAI Responses API server-side med `store: false`. Den aktuella standarden i `.env.example` är `gpt-5.6-terra`, vald för korta, kostnadskänsliga svar. Modellen kan bytas utan förändring i ritualdomänen.
+För nollkostnadsdrift sätts `CLOUDFLARE_ACCOUNT_ID` och `CLOUDFLARE_API_TOKEN` som servervariabler för Workers AI Free. Modellen är låst till den flerspråkiga `@cf/meta/llama-3.1-8b-instruct-fp8-fast`. Cloudflares fria tilldelning är 10 000 neuroner per dygn; på Workers Free stoppas ytterligare anrop när den är slut. Pepply fångar det felet och använder ett granskat reservmeddelande automatiskt.
+
+Pepply försöker högst tre AI-genereringar per användare och dygn, gemensamt för ritual och chatt. Ett högre värde i `AI_DAILY_USER_LIMIT` kapas ändå till tre. I demoläge används en anonym httpOnly-cookie för att skilja webbläsare åt och en lokal skyddsgräns per serverinstans; i kontoläge är gränsen atomisk i Supabase. Cloudflares Free-plan är det slutliga globala kostnadsskyddet. Uppgradera inte Cloudflare-kontot till Workers Paid om ägarkostnaden måste förbli 0 kr.
+
+OpenAI-adaptern finns kvar för eventuell framtida utveckling men används inte som automatisk reserv för generering. Lämna `OPENAI_API_KEY` tom för nollkostnadsdriften.
 
 Varje generering har:
 
@@ -82,10 +86,13 @@ Gränssnitten är separerade från produkten, men Stripe-checkout och VAPID-utsk
 | `NEXT_PUBLIC_SUPABASE_URL` | Klient | Supabase-projekt |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Klient | RLS-begränsad publik nyckel |
 | `SUPABASE_SERVICE_ROLE_KEY` | Serverhemlighet | Kontoradering och kontrollerade adminjobb |
+| `CLOUDFLARE_ACCOUNT_ID` | Server | Cloudflare-konto för Workers AI |
+| `CLOUDFLARE_API_TOKEN` | Serverhemlighet | Workers AI-token; får aldrig exponeras i klienten |
+| `CLOUDFLARE_AI_MODEL` | Server | Låst till `@cf/meta/llama-3.1-8b-instruct-fp8-fast` |
 | `OPENAI_API_KEY` | Serverhemlighet | AI-adapter |
 | `OPENAI_MODEL` | Server | Modell-ID |
 | `OPENAI_MODERATION_MODEL` | Server | Modereringsmodell |
-| `AI_DAILY_USER_LIMIT` | Server | Genereringsgräns per användare/dygn |
+| `AI_DAILY_USER_LIMIT` | Server | Gemensam genereringsgräns per användare/dygn, hårdkapad till 3 |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Klient | Framtida pushprenumeration |
 | `VAPID_PRIVATE_KEY` | Serverhemlighet | Framtida pushutskick |
 | `STRIPE_*` | Blandat | Framtida betalningsadapter |
@@ -110,11 +117,11 @@ Verifierat i denna leverans:
 
 - lint: godkänd utan varningar
 - strikt TypeScript: godkänd
-- 23 enhetstester: godkända
+- 33 enhetstester: godkända
 - Next.js produktionsbyggnad: godkänd, 42 app-rutter
 - produktionsdependency-audit: 0 kända sårbarheter
 - HTTP-smoke: landningssida, hem, health, vanlig ritual, akut säkerhetsritual, favoriter, rapport och kontoradering: godkända
-- Playwright-sviten har 13 scenarier för desktop/mobil, men browserkörning kunde inte slutföras i den begränsade byggmiljön eftersom Chromium nekades nätverksinterface av sandlådan. Kör `npx playwright install` och `npm run test:e2e` i CI eller lokal standardmiljö.
+- Playwright-sviten har 13 scenarier som körs i både desktop- och mobilprojekt, men browserkörning kunde inte slutföras i den här byggmiljön eftersom Chromium-binären inte är installerad. Kör `npx playwright install chromium` och `npm run test:e2e` i CI eller lokal standardmiljö.
 
 `package.json` har en avgränsad override till PostCSS 8.5.19 eftersom Next.js 16.2.10 annars installerar en äldre sårbar intern version. Behåll den tills Next.js beroendeträd själv ligger på minst PostCSS 8.5.10; kontrollera med `npm ls postcss` och `npm audit --omit=dev` vid uppgradering.
 
@@ -127,7 +134,7 @@ Verifierat i denna leverans:
 1. Importera repot och välj Next.js.
 2. Lägg miljövariabler per miljö: Preview och Production ska använda separata Supabase-projekt.
 3. Kör migreringar från en kontrollerad CI-jobb, inte från webbruntime.
-4. Sätt `PEPPLY_DEMO_MODE=false` och `NEXT_PUBLIC_DEMO_MODE=false`.
+4. För den kostnadsfria publika demon: behåll `PEPPLY_DEMO_MODE=true` och `NEXT_PUBLIC_DEMO_MODE=true`. Stäng av båda först när Supabase Auth och datalagringen är driftsatta.
 5. Deploya och kontrollera `/api/health`.
 6. Kör E2E mot preview-domänen.
 7. Aktivera schemalagd `public.run_retention_jobs()` först efter juridiskt godkännande av tiderna.

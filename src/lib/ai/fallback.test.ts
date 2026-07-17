@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFallbackPepp } from "@/lib/ai/fallback";
+import { getFallbackChatReply, getFallbackPepp } from "@/lib/ai/fallback";
 import type { RitualInput } from "@/lib/types";
 
 const baseInput: RitualInput = {
@@ -22,5 +22,9 @@ describe("getFallbackPepp", () => {
   it("uses area-specific copy for an unknown mood", () => {
     const result = getFallbackPepp({ ...baseInput, mood: "Något eget" });
     expect(result.message).toContain("förstod");
+  });
+
+  it("ends a longer fallback chat instead of encouraging dependency", () => {
+    expect(getFallbackChatReply(4)).toContain("sluta där för stunden");
   });
 });

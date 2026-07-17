@@ -10,7 +10,7 @@ flowchart TD
   Routes --> Safety[Deterministiskt säkerhetslager]
   Safety -->|normal| AI[Utbytbart AI-lager]
   Safety -->|risk| Crisis[Granskat krisflöde]
-  AI --> OpenAI[OpenAI-adapter]
+  AI --> Cloudflare[Cloudflare Workers AI Free]
   AI --> Fallback[Granskade reservtexter]
 ```
 
@@ -33,17 +33,18 @@ Klienten får aldrig hemliga nycklar eller systemprompt. Route Handlers validera
 
 1. Klienten skickar mood, frivillig note, ton, längd, områden, eventuellt mål och högst fem korta nyliga meddelanden.
 2. Zod avvisar överstora eller ogiltiga fält.
-3. Servern verifierar användaren och förbrukar en databasbaserad dagskvot.
-4. Deterministisk säkerhetsklassificering körs före AI.
-5. Vid risk returneras granskat svar och resurser; vanlig AI bypassas.
-6. Annars används OpenAI-adaptern eller reservtext.
-7. Utdata valideras mot längd, diagnos, falsk säkerhet och beroendespråk.
-8. Check-in, ritual, meddelande och tokenmetadata sparas under användarens RLS.
-9. Klienten markerar kvällen färdig och visar inget nästa innehåll.
+3. Servern verifierar användaren.
+4. Deterministisk säkerhetsklassificering körs före kvot och AI.
+5. Vid risk returneras granskat svar och resurser; vanlig AI och AI-kvot bypassas.
+6. Vid normal input förbrukas en gemensam gräns på högst tre AI-försök per användare och dygn.
+7. Annars används Cloudflare Workers AI Free eller en granskad reservtext vid dagsgräns, leverantörsfel, fri Cloudflare-kvot eller saknad konfiguration.
+8. Utdata valideras mot längd, diagnos, falsk säkerhet och beroendespråk.
+9. Check-in, ritual, meddelande och tokenmetadata sparas under användarens RLS.
+10. Klienten markerar kvällen färdig och visar inget nästa innehåll.
 
 ### AI-chatt
 
-Högst sex tidigare meddelanden hämtas och åtta användarturer tillåts i klienten. Råtext är markerad för 30 dagars standardgallring. Ingen chatttext omvandlas automatiskt till mål eller permanent minne.
+Högst sex tidigare meddelanden hämtas och åtta användarturer tillåts i klienten. Chatten delar den dagliga AI-gränsen med ritualen och går över till reservtext utan fel när gränsen nås. Råtext är markerad för 30 dagars standardgallring. Ingen chatttext omvandlas automatiskt till mål eller permanent minne.
 
 ### Adminmoderering
 
