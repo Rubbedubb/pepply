@@ -10,6 +10,7 @@ export interface AiResult {
   text: string;
   usage?: AiUsage;
   provider: string;
+  model?: string;
 }
 
 export interface AiProvider {

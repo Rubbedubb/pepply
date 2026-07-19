@@ -84,4 +84,58 @@ describe("CloudflareAiProvider", () => {
       "Daily free allocation exhausted",
     );
   });
+
+  it("uses the advanced model and includes bounded chat history", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          result: {
+            response:
+              "Det du beskriver hänger ihop med pressen från matten. Vilken del skulle bli lättare om du gjorde den mindre?",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = new CloudflareAiProvider(
+      "a".repeat(32),
+      "server-secret-token",
+      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "advanced",
+    );
+    await provider.generateChatReply({
+      message: "Hur gör jag det mindre?",
+      turnCount: 2,
+      recentMessages: [
+        { role: "user", content: "Jag fastnar i matten." },
+        {
+          role: "assistant",
+          content: "Vi kan börja med den del som tar mest energi.",
+        },
+      ],
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(
+      "/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    );
+    const body = JSON.parse(String(init.body));
+    expect(body.messages).toEqual(
+      expect.arrayContaining([
+        { role: "user", content: "Jag fastnar i matten." },
+        {
+          role: "assistant",
+          content: "Vi kan börja med den del som tar mest energi.",
+        },
+      ]),
+    );
+    expect(body.messages[0].content).toContain("Svarsläge: Avancerat");
+    expect(body.messages.at(-1)).toEqual({
+      role: "user",
+      content: "Hur gör jag det mindre?",
+    });
+  });
 });

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     let recentMessages: Array<{
       role: "user" | "assistant";
       content: string;
-    }> = [];
+    }> = isRequestDemo() ? (input.recentMessages ?? []) : [];
 
     if (!isRequestDemo() && input.conversationId) {
       const supabase = await createClient();
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         turnCount: input.turnCount,
         recentMessages,
       },
-      { allowAi },
+      { allowAi, aiMode: input.aiMode },
     );
 
     let conversationId = input.conversationId ?? crypto.randomUUID();
@@ -90,6 +90,9 @@ export async function POST(request: Request) {
       message: result.text,
       safetyLevel: result.safetyLevel,
       suggestEnding: input.turnCount >= 5,
+      aiMode: result.model ? input.aiMode : null,
+      source: result.provider,
+      quotaReached: result.provider === "fallback-daily-limit",
     });
   } catch (error) {
     return apiError(error);

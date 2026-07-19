@@ -6,7 +6,7 @@ import {
   buildRitualPrompt,
   PEPPly_STYLE_GUIDE,
 } from "@/lib/ai/prompts";
-import type { RitualInput } from "@/lib/types";
+import type { AiMode, RitualInput } from "@/lib/types";
 
 interface CloudflareAiResponse {
   success?: boolean;
@@ -19,6 +19,7 @@ export class CloudflareAiProvider implements AiProvider {
     private readonly accountId: string,
     private readonly apiToken: string,
     private readonly model: string,
+    private readonly mode: AiMode = "direct",
   ) {}
 
   private async run(
@@ -39,7 +40,7 @@ export class CloudflareAiProvider implements AiProvider {
           temperature: 0.65,
         }),
         cache: "no-store",
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(this.mode === "advanced" ? 25_000 : 12_000),
       },
     );
 
@@ -51,7 +52,7 @@ export class CloudflareAiProvider implements AiProvider {
       throw new Error(`Cloudflare Workers AI failed: ${reason}`);
     }
 
-    return { text, provider: "cloudflare-workers-ai" };
+    return { text, provider: "cloudflare-workers-ai", model: this.model };
   }
 
   generateRitualMessage(input: RitualInput): Promise<AiResult> {
@@ -71,7 +72,10 @@ export class CloudflareAiProvider implements AiProvider {
   }): Promise<AiResult> {
     return this.run(
       [
-        { role: "system", content: buildChatInstructions(input.turnCount) },
+        {
+          role: "system",
+          content: buildChatInstructions(input.turnCount, this.mode),
+        },
         ...(input.recentMessages ?? []).slice(-6),
         { role: "user", content: input.message },
       ],

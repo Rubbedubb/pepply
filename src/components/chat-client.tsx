@@ -2,15 +2,19 @@
 
 import { ArrowUp, LoaderCircle, ShieldAlert, Sparkles, UserRound } from "lucide-react";
 import { useRef, useState } from "react";
+import { AiModeSelector } from "@/components/ai-mode-selector";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/form-field";
 import { SWEDISH_CRISIS_RESOURCES } from "@/lib/safety/resources";
+import type { AiMode } from "@/lib/types";
 
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
   safetyLevel?: "none" | "concern" | "urgent";
+  aiMode?: AiMode | null;
+  source?: string;
 };
 
 const starters = [
@@ -29,13 +33,16 @@ export function ChatClient() {
     },
   ]);
   const [input, setInput] = useState("");
+  const [aiMode, setAiMode] = useState<AiMode>("direct");
   const [conversationId, setConversationId] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [suggestEnding, setSuggestEnding] = useState(false);
+  const [aiQuotaReached, setAiQuotaReached] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const turnCount = messages.filter((message) => message.role === "user").length;
-  const reachedLimit = turnCount >= 8;
+  const reachedTurnLimit = turnCount >= 8;
+  const reachedLimit = reachedTurnLimit || aiQuotaReached;
 
   async function send(text = input) {
     const trimmed = text.trim();
@@ -50,10 +57,20 @@ export function ChatClient() {
     setError(null);
 
     try {
+      const recentMessages = messages
+        .filter((message) => message.id !== "welcome")
+        .slice(-6)
+        .map(({ role, content }) => ({ role, content }));
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, conversationId, turnCount }),
+        body: JSON.stringify({
+          message: trimmed,
+          conversationId,
+          turnCount,
+          aiMode,
+          recentMessages,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Kunde inte svara just nu.");
@@ -66,9 +83,12 @@ export function ChatClient() {
           role: "assistant",
           content: payload.message,
           safetyLevel: payload.safetyLevel,
+          aiMode: payload.aiMode,
+          source: payload.source,
         },
       ]);
       setSuggestEnding(payload.suggestEnding);
+      setAiQuotaReached(payload.quotaReached === true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Något gick fel.");
     } finally {
@@ -92,6 +112,15 @@ export function ChatClient() {
                 ) : null}
                 <div className={`max-w-[85%] rounded-[1.4rem] px-4 py-3 text-sm leading-7 sm:text-base ${message.role === "user" ? "rounded-br-md bg-foreground text-background" : crisis ? "rounded-bl-md border border-danger/30 bg-red-50 dark:bg-red-950/20" : "rounded-bl-md bg-surface-muted"}`}>
                   <p>{message.content}</p>
+                  {message.role === "assistant" && message.id !== "welcome" && !crisis ? (
+                    <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-wider text-muted">
+                      {message.source?.startsWith("fallback")
+                        ? "Granskat reservsvar"
+                        : message.aiMode === "advanced"
+                          ? "Avancerat · 70B"
+                          : "Direkt · 8B"}
+                    </p>
+                  ) : null}
                   {crisis ? (
                     <div className="mt-4 space-y-2 border-t border-danger/20 pt-4 text-sm">
                       {SWEDISH_CRISIS_RESOURCES.slice(0, 3).map((resource) => (
@@ -116,7 +145,9 @@ export function ChatClient() {
               <span className="grid size-9 place-items-center rounded-2xl bg-brand-soft text-brand-strong">
                 <LoaderCircle aria-hidden="true" className="animate-spin" size={17} />
               </span>
-              Pepply tänker kort…
+              {aiMode === "advanced"
+                ? "Pepply resonerar mer noggrant…"
+                : "Pepply tänker kort…"}
             </div>
           ) : null}
 
@@ -124,8 +155,10 @@ export function ChatClient() {
             <div className="rounded-2xl border border-brand/30 bg-brand-soft p-4 text-sm leading-6">
               <p className="font-semibold">Det kan räcka här för stunden.</p>
               <p className="mt-1 text-muted">
-                {reachedLimit
-                  ? "Chatten är pausad efter åtta svar. Spara gärna ett litet nästa steg och återvänd senare om du vill."
+                {aiQuotaReached
+                  ? "Dagens tre AI-svar är använda. Chatten öppnas för nya AI-svar när dygnsgränsen återställs."
+                  : reachedTurnLimit
+                    ? "Chatten är pausad efter åtta svar. Spara gärna ett litet nästa steg och återvänd senare om du vill."
                   : "Vill du sammanfatta ett litet nästa steg, eller avsluta utan att göra mer?"}
               </p>
             </div>
@@ -146,6 +179,14 @@ export function ChatClient() {
       <div className="border-t border-border bg-surface px-4 py-4 sm:px-8">
         <div className="mx-auto max-w-2xl">
           {error ? <p role="alert" className="mb-3 text-sm text-danger">{error}</p> : null}
+          <div className="mb-3">
+            <AiModeSelector
+              value={aiMode}
+              onChange={setAiMode}
+              disabled={loading || reachedLimit}
+              compact
+            />
+          </div>
           <div className="flex items-end gap-2 rounded-[1.4rem] border border-border bg-background p-2">
             <Textarea
               ref={inputRef}
@@ -160,7 +201,13 @@ export function ChatClient() {
               rows={1}
               maxLength={1200}
               disabled={loading || reachedLimit}
-              placeholder={reachedLimit ? "Chatten är färdig för stunden" : "Skriv kort vad som tar plats…"}
+              placeholder={
+                aiQuotaReached
+                  ? "Dagens AI-kvot är använd"
+                  : reachedTurnLimit
+                    ? "Chatten är färdig för stunden"
+                    : "Skriv kort vad som tar plats…"
+              }
               className="min-h-11 flex-1 border-0 bg-transparent py-2.5 focus:outline-none"
             />
             <Button type="button" onClick={() => send()} disabled={!input.trim() || loading || reachedLimit} aria-label="Skicka" className="size-11 min-h-11 shrink-0 px-0">

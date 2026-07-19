@@ -10,7 +10,8 @@ flowchart TD
   Routes --> Safety[Deterministiskt säkerhetslager]
   Safety -->|normal| AI[Utbytbart AI-lager]
   Safety -->|risk| Crisis[Granskat krisflöde]
-  AI --> Cloudflare[Cloudflare Workers AI Free]
+  AI --> Direct[Direkt: Llama 3.1 8B]
+  AI --> Advanced[Avancerat: Llama 3.3 70B]
   AI --> Fallback[Granskade reservtexter]
 ```
 
@@ -31,20 +32,20 @@ Klienten får aldrig hemliga nycklar eller systemprompt. Route Handlers validera
 
 ### Ritual
 
-1. Klienten skickar mood, frivillig note, ton, längd, områden, eventuellt mål och högst fem korta nyliga meddelanden.
+1. Klienten skickar mood, frivillig note, ton, längd, områden, eventuellt mål, modelläge och högst fem korta nyliga meddelanden.
 2. Zod avvisar överstora eller ogiltiga fält.
 3. Servern verifierar användaren.
 4. Deterministisk säkerhetsklassificering körs före kvot och AI.
 5. Vid risk returneras granskat svar och resurser; vanlig AI och AI-kvot bypassas.
 6. Vid normal input förbrukas en gemensam gräns på högst tre AI-försök per användare och dygn.
-7. Annars används Cloudflare Workers AI Free eller en granskad reservtext vid dagsgräns, leverantörsfel, fri Cloudflare-kvot eller saknad konfiguration.
+7. Validerat läge väljer antingen den snabba 8B-modellen eller den mer nyanserade 70B-modellen på Cloudflare Workers AI Free. En granskad reservtext används vid dagsgräns, leverantörsfel, fri Cloudflare-kvot eller saknad konfiguration.
 8. Utdata valideras mot längd, diagnos, falsk säkerhet och beroendespråk.
 9. Check-in, ritual, meddelande och tokenmetadata sparas under användarens RLS.
 10. Klienten markerar kvällen färdig och visar inget nästa innehåll.
 
 ### AI-chatt
 
-Högst sex tidigare meddelanden hämtas och åtta användarturer tillåts i klienten. Chatten delar den dagliga AI-gränsen med ritualen och går över till reservtext utan fel när gränsen nås. Råtext är markerad för 30 dagars standardgallring. Ingen chatttext omvandlas automatiskt till mål eller permanent minne.
+Högst sex tidigare meddelanden används och åtta användarturer tillåts i klienten. I kontoläge hämtar servern kontexten under RLS; i demoläge skickar klienten en strikt validerad, begränsad samtalskontext eftersom ingen databas lagrar chatten. Chattprompten är separerad från ritualens engångsformat och tar hänsyn till valt Direkt-/Avancerat-läge. Chatten delar den dagliga AI-gränsen med ritualen, pausas tydligt när gränsen nås och visar ett granskat reservsvar utan API-fel. Råtext är markerad för 30 dagars standardgallring. Ingen chatttext omvandlas automatiskt till mål eller permanent minne.
 
 ### Adminmoderering
 

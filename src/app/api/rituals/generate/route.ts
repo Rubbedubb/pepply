@@ -33,8 +33,9 @@ export async function POST(request: Request) {
 
     const demoMode = isRequestDemo();
     const supabase = demoMode ? null : await createClient();
+    const { aiMode, ...ritualInput } = input;
     let effectiveInput: RitualInput = {
-      ...input,
+      ...ritualInput,
       recentMessages: demoMode ? (input.recentMessages ?? []) : [],
       recentFeedback: [],
     };
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
           : input.tone;
 
         effectiveInput = {
-          ...input,
+          ...ritualInput,
           areas: validAreas.length ? validAreas : input.areas,
           tone,
           length:
@@ -138,7 +139,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const result = await generateRitualMessage(effectiveInput, { allowAi });
+    const result = await generateRitualMessage(effectiveInput, {
+      allowAi,
+      aiMode,
+    });
     let messageId = crypto.randomUUID();
 
     if (supabase) {
@@ -175,7 +179,7 @@ export async function POST(request: Request) {
           content: result.message,
           source: result.source,
           provider: result.provider ?? null,
-          model: result.usage?.model ?? null,
+          model: result.model ?? result.usage?.model ?? null,
           prompt_version: result.promptVersion,
           input_tokens: result.usage?.inputTokens ?? null,
           output_tokens: result.usage?.outputTokens ?? null,
@@ -208,6 +212,7 @@ export async function POST(request: Request) {
       closing: result.closing,
       source: result.source,
       safetyLevel: result.safetyLevel,
+      aiMode: result.model ? aiMode : null,
     });
   } catch (error) {
     return apiError(error);

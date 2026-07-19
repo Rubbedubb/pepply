@@ -48,7 +48,9 @@
 - Användartext läggs som data i en separat promptdel, inte som systeminstruktion.
 - Systemprompt och leverantörsnyckel finns bara server-side.
 - Cloudflare-konto-ID och API-token saknar `NEXT_PUBLIC_`-prefix och importeras bara i `server-only`-moduler.
+- Klienten skickar endast läget `direct` eller `advanced`; servern mappar dessa till två fastlåsta Cloudflare-modell-ID:n.
 - Kontexten är begränsad; full profil och full historik skickas aldrig som standard.
+- Demochattens klientkontext valideras per roll och längd och kapas till sex meddelanden. Den behandlas alltid som opålitlig användardata.
 - Utdatafilter blockerar beroendespråk, falska löften, diagnoser och medicinråd.
 - AI får inte använda verktyg eller hämta extern information i ritualen.
 - Reservmeddelanden täcker saknad konfiguration, Pepplys dagsgräns, Cloudflares fria dagskvot, leverantörsfel och underkänd utdata.
@@ -79,7 +81,7 @@
 | Emotionell annonsprofil | schemat saknar sådana fält; aggregerade event | Framtida analytics kan återinföra risk |
 | Community publicerar skada | lokala regler + leverantörsmoderering, obligatorisk manuell kö, rapport, disable | Moderatorfel och köfördröjning |
 | Kontoradering lämnar data | FK cascade + export/delete-test | Leverantörsbackuper och rättslig retention |
-| DDoS/kostnadschock | tre AI-försök/användare/dygn, max tokens, fallback, Workers Free som globalt stopp | Demogränsen är per webbläsare/serverinstans; distribuerade klienter kan förbruka den fria Cloudflare-kvoten men inte skapa överdebitering utan separat planuppgradering |
+| DDoS/kostnadschock | tre AI-försök/användare/dygn gemensamt för 8B/70B, max tokens, fallback, Workers Free som globalt stopp | 70B förbrukar den fria kvoten snabbare. Demogränsen är per webbläsare/serverinstans; distribuerade klienter kan förbruka den fria Cloudflare-kvoten men inte skapa överdebitering utan separat planuppgradering |
 
 ## Säkerhetstest före lansering
 

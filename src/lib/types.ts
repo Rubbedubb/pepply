@@ -16,8 +16,11 @@ export const toneOptions = [
   "humoristisk men respektfull",
 ] as const;
 
+export const aiModes = ["direct", "advanced"] as const;
+
 export type SupportArea = (typeof supportAreas)[number];
 export type ToneOption = (typeof toneOptions)[number];
+export type AiMode = (typeof aiModes)[number];
 export type MessageLength = "kort" | "utvecklad";
 export type UserRole = "user" | "moderator" | "admin";
 export type SafetyLevel = "none" | "concern" | "urgent";

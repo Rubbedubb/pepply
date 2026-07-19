@@ -15,9 +15,11 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { AdBanner } from "@/components/ad-banner";
+import { AiModeSelector } from "@/components/ai-mode-selector";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/form-field";
 import { SWEDISH_CRISIS_RESOURCES } from "@/lib/safety/resources";
+import type { AiMode } from "@/lib/types";
 
 type Result = {
   id: string;
@@ -25,6 +27,7 @@ type Result = {
   closing: string;
   source: string;
   safetyLevel: "none" | "concern" | "urgent";
+  aiMode: AiMode | null;
 };
 
 const moods = ["Tung", "Trött", "Stressad", "Okej", "Lugn", "Blandad"];
@@ -36,6 +39,7 @@ function todayKey() {
 export function RitualFlow() {
   const [mood, setMood] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [aiMode, setAiMode] = useState<AiMode>("direct");
   const [stage, setStage] = useState<"checkin" | "loading" | "result">("checkin");
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +66,7 @@ export function RitualFlow() {
           areas: ["studier", "träning", "självkänsla"],
           activeGoal: "Plugga matte 20 minuter",
           recentMessages: [],
+          aiMode,
         }),
       });
       const payload = await response.json();
@@ -134,7 +139,11 @@ export function RitualFlow() {
             <LoaderCircle aria-hidden="true" className="animate-spin" size={27} />
           </span>
           <h1 className="mt-7 text-3xl font-semibold tracking-tight">En liten stund.</h1>
-          <p className="mt-3 text-muted">Pepply formulerar ett enda meddelande utifrån din kväll.</p>
+          <p className="mt-3 text-muted">
+            {aiMode === "advanced"
+              ? "Pepply väger samman det du skrev lite noggrannare."
+              : "Pepply formulerar ett enda meddelande utifrån din kväll."}
+          </p>
         </div>
       </div>
     );
@@ -151,6 +160,15 @@ export function RitualFlow() {
           <p className={`mt-6 text-sm font-semibold ${crisis ? "text-danger" : "text-brand-strong"}`}>
             {crisis ? "Viktigt just nu" : "Ditt meddelande i kväll"}
           </p>
+          {!crisis ? (
+            <p className="mt-1 text-xs text-muted">
+              {result.aiMode === "advanced"
+                ? "Avancerat svar · 70B"
+                : result.aiMode === "direct"
+                  ? "Direkt svar · 8B"
+                  : "Granskat reservsvar"}
+            </p>
+          ) : null}
         </div>
 
         <blockquote className="text-balance mt-5 text-center text-2xl font-medium leading-[1.55] tracking-[-0.025em] sm:text-3xl">
@@ -277,6 +295,11 @@ export function RitualFlow() {
           <span>Sparas inte som permanent profilminne.</span>
           <span>{note.length}/600</span>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <p className="mb-2 text-sm font-semibold">Hur ska Pepply svara?</p>
+        <AiModeSelector value={aiMode} onChange={setAiMode} />
       </div>
 
       {error ? <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-4 text-sm text-danger dark:bg-red-950/30">{error}</p> : null}
