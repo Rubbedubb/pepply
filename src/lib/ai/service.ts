@@ -2,19 +2,21 @@ import "server-only";
 
 import { CloudflareAiProvider } from "@/lib/ai/cloudflare-provider";
 import { getFallbackChatReply, getFallbackPepp } from "@/lib/ai/fallback";
+import { getCloudflareAiModel } from "@/lib/ai/models";
 import type { AiProvider } from "@/lib/ai/provider";
 import { RITUAL_PROMPT_VERSION } from "@/lib/ai/prompts";
 import { isCloudflareAiConfigured, serverEnv } from "@/lib/env";
 import { classifySafety, validateGeneratedMessage } from "@/lib/safety/classify";
-import type { GeneratedPepp, RitualInput } from "@/lib/types";
+import type { AiMode, GeneratedPepp, RitualInput } from "@/lib/types";
 
 export interface RitualGenerationResult extends GeneratedPepp {
   provider?: string;
   usage?: { inputTokens: number; outputTokens: number; model: string };
+  model?: string;
   safetyReasons?: string[];
 }
 
-function createAiProvider(): AiProvider | null {
+function createAiProvider(mode: AiMode): AiProvider | null {
   if (
     isCloudflareAiConfigured &&
     serverEnv.CLOUDFLARE_ACCOUNT_ID &&
@@ -23,7 +25,8 @@ function createAiProvider(): AiProvider | null {
     return new CloudflareAiProvider(
       serverEnv.CLOUDFLARE_ACCOUNT_ID,
       serverEnv.CLOUDFLARE_API_TOKEN,
-      serverEnv.CLOUDFLARE_AI_MODEL,
+      getCloudflareAiModel(mode),
+      mode,
     );
   }
 
@@ -32,6 +35,7 @@ function createAiProvider(): AiProvider | null {
 
 interface GenerationOptions {
   allowAi?: boolean;
+  aiMode?: AiMode;
 }
 
 export async function generateRitualMessage(
@@ -58,7 +62,7 @@ export async function generateRitualMessage(
     return { ...getFallbackPepp(input), provider: "fallback-daily-limit" };
   }
 
-  const provider = createAiProvider();
+  const provider = createAiProvider(options.aiMode ?? "direct");
   if (!provider) {
     return { ...getFallbackPepp(input), provider: "fallback-not-configured" };
   }
@@ -76,6 +80,7 @@ export async function generateRitualMessage(
       closing: "Det räcker för i kväll. Ta hand om dig.",
       source: "ai",
       provider: result.provider,
+      model: result.model,
       usage: result.usage,
       promptVersion: RITUAL_PROMPT_VERSION,
       safetyLevel: "none",
@@ -113,7 +118,7 @@ export async function generateChatReply(
     };
   }
 
-  const provider = createAiProvider();
+  const provider = createAiProvider(options.aiMode ?? "direct");
   if (!provider) {
     return {
       text: getFallbackChatReply(input.turnCount),
@@ -137,6 +142,7 @@ export async function generateChatReply(
       text: result.text,
       safetyLevel: "none" as const,
       provider: result.provider,
+      model: result.model,
     };
   } catch {
     return {

@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { supportAreas, toneOptions } from "@/lib/types";
+import { aiModes, supportAreas, toneOptions } from "@/lib/types";
+
+const chatHistoryItemSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().trim().min(1).max(1200),
+});
 
 export const ritualInputSchema = z.object({
   mood: z.string().trim().min(1).max(40),
@@ -10,6 +15,7 @@ export const ritualInputSchema = z.object({
   areas: z.array(z.enum(supportAreas)).min(1).max(7),
   activeGoal: z.string().trim().max(200).optional(),
   recentMessages: z.array(z.string().trim().max(600)).max(5).optional(),
+  aiMode: z.enum(aiModes).default("direct"),
 });
 
 export const onboardingSchema = z.object({
@@ -51,4 +57,6 @@ export const chatInputSchema = z.object({
   message: z.string().trim().min(1).max(1200),
   conversationId: z.uuid().optional(),
   turnCount: z.number().int().min(0).max(12).default(0),
+  aiMode: z.enum(aiModes).default("direct"),
+  recentMessages: z.array(chatHistoryItemSchema).max(6).optional(),
 });

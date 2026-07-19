@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { communitySubmissionSchema, onboardingSchema, ritualInputSchema } from "@/lib/validation";
+import {
+  chatInputSchema,
+  communitySubmissionSchema,
+  onboardingSchema,
+  ritualInputSchema,
+} from "@/lib/validation";
 
 describe("input validation", () => {
   it("accepts a minimal ritual input", () => {
@@ -23,6 +28,43 @@ describe("input validation", () => {
         tone: "lugn och mjuk",
         length: "kort",
         areas: ["stress"],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("defaults generation to direct mode and accepts advanced mode", () => {
+    const base = {
+      mood: "Lugn",
+      question: "Hur känns det?",
+      tone: "lugn och mjuk" as const,
+      length: "kort" as const,
+      areas: ["stress" as const],
+    };
+
+    expect(ritualInputSchema.parse(base).aiMode).toBe("direct");
+    expect(
+      ritualInputSchema.parse({ ...base, aiMode: "advanced" }).aiMode,
+    ).toBe("advanced");
+  });
+
+  it("accepts only bounded, role-safe chat context", () => {
+    expect(
+      chatInputSchema.safeParse({
+        message: "Hur gör jag det mindre?",
+        aiMode: "advanced",
+        recentMessages: [
+          { role: "user", content: "Jag fastnar i matten." },
+          { role: "assistant", content: "Vi börjar med en liten del." },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      chatInputSchema.safeParse({
+        message: "Hej",
+        recentMessages: Array.from({ length: 7 }, () => ({
+          role: "assistant",
+          content: "För många meddelanden",
+        })),
       }).success,
     ).toBe(false);
   });

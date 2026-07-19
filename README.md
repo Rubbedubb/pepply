@@ -53,9 +53,9 @@ RLS är aktiverat på samtliga tabeller. UI-döljning är aldrig enda behörighe
 
 ### 2. AI
 
-För nollkostnadsdrift sätts `CLOUDFLARE_ACCOUNT_ID` och `CLOUDFLARE_API_TOKEN` som servervariabler för Workers AI Free. Modellen är låst till den flerspråkiga `@cf/meta/llama-3.1-8b-instruct-fp8-fast`. Cloudflares fria tilldelning är 10 000 neuroner per dygn; på Workers Free stoppas ytterligare anrop när den är slut. Pepply fångar det felet och använder ett granskat reservmeddelande automatiskt.
+För nollkostnadsdrift sätts `CLOUDFLARE_ACCOUNT_ID` och `CLOUDFLARE_API_TOKEN` som servervariabler för Workers AI Free. Användaren väljer **Direkt** (`@cf/meta/llama-3.1-8b-instruct-fp8-fast`) eller **Avancerat** (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) för varje ritual eller chattmeddelande. Modell-ID:na är låsta i serverkod och kan inte ersättas med godtycklig klientinput. Cloudflares fria tilldelning är 10 000 neuroner per dygn; på Workers Free stoppas ytterligare anrop när den är slut. Pepply fångar det felet och använder ett granskat reservmeddelande automatiskt.
 
-Pepply försöker högst tre AI-genereringar per användare och dygn, gemensamt för ritual och chatt. Ett högre värde i `AI_DAILY_USER_LIMIT` kapas ändå till tre. I demoläge används en anonym httpOnly-cookie för att skilja webbläsare åt och en lokal skyddsgräns per serverinstans; i kontoläge är gränsen atomisk i Supabase. Cloudflares Free-plan är det slutliga globala kostnadsskyddet. Uppgradera inte Cloudflare-kontot till Workers Paid om ägarkostnaden måste förbli 0 kr.
+Pepply försöker högst tre AI-genereringar per användare och dygn, gemensamt för ritual, chatt och båda modellägena. Ett högre värde i `AI_DAILY_USER_LIMIT` kapas ändå till tre. I demoläge används en anonym httpOnly-cookie för att skilja webbläsare åt och en lokal skyddsgräns per serverinstans; i kontoläge är gränsen atomisk i Supabase. Cloudflares Free-plan är det slutliga globala kostnadsskyddet. Uppgradera inte Cloudflare-kontot till Workers Paid om ägarkostnaden måste förbli 0 kr.
 
 OpenAI-adaptern finns kvar för eventuell framtida utveckling men används inte som automatisk reserv för generering. Lämna `OPENAI_API_KEY` tom för nollkostnadsdriften.
 
@@ -81,14 +81,13 @@ Gränssnitten är separerade från produkten, men Stripe-checkout och VAPID-utsk
 | Variabel | Exponering | Syfte |
 |---|---|---|
 | `NEXT_PUBLIC_APP_URL` | Klient | Kanonisk app-URL |
-| `PEPPLY_DEMO_MODE` | Server | Lokalt demoläge; måste vara `false`/saknas i prod |
+| `PEPPLY_DEMO_MODE` | Server | Demoläge; avaktiveras när riktiga konton och datalagring tas i drift |
 | `NEXT_PUBLIC_DEMO_MODE` | Klient | Visuellt/klickbart demoläge |
 | `NEXT_PUBLIC_SUPABASE_URL` | Klient | Supabase-projekt |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Klient | RLS-begränsad publik nyckel |
 | `SUPABASE_SERVICE_ROLE_KEY` | Serverhemlighet | Kontoradering och kontrollerade adminjobb |
 | `CLOUDFLARE_ACCOUNT_ID` | Server | Cloudflare-konto för Workers AI |
 | `CLOUDFLARE_API_TOKEN` | Serverhemlighet | Workers AI-token; får aldrig exponeras i klienten |
-| `CLOUDFLARE_AI_MODEL` | Server | Låst till `@cf/meta/llama-3.1-8b-instruct-fp8-fast` |
 | `OPENAI_API_KEY` | Serverhemlighet | AI-adapter |
 | `OPENAI_MODEL` | Server | Modell-ID |
 | `OPENAI_MODERATION_MODEL` | Server | Modereringsmodell |
@@ -117,7 +116,7 @@ Verifierat i denna leverans:
 
 - lint: godkänd utan varningar
 - strikt TypeScript: godkänd
-- 34 enhetstester: godkända
+- 39 enhetstester: godkända
 - Next.js produktionsbyggnad: godkänd, 42 app-rutter
 - produktionsdependency-audit: 0 kända sårbarheter
 - HTTP-smoke: landningssida, hem, health, vanlig ritual, akut säkerhetsritual, favoriter, rapport och kontoradering: godkända

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const providerMocks = vi.hoisted(() => ({
   ritual: vi.fn(),
   chat: vi.fn(),
+  instances: [] as Array<{ model: string; mode: string }>,
 }));
 
 vi.mock("server-only", () => ({}));
@@ -11,11 +12,19 @@ vi.mock("@/lib/env", () => ({
   serverEnv: {
     CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
     CLOUDFLARE_API_TOKEN: "server-secret-token",
-    CLOUDFLARE_AI_MODEL: "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
   },
 }));
 vi.mock("@/lib/ai/cloudflare-provider", () => ({
   CloudflareAiProvider: class {
+    constructor(
+      _accountId: string,
+      _apiToken: string,
+      model: string,
+      mode: string,
+    ) {
+      providerMocks.instances.push({ model, mode });
+    }
+
     generateRitualMessage = providerMocks.ritual;
     generateChatReply = providerMocks.chat;
     moderate = vi.fn();
@@ -38,6 +47,7 @@ describe("AI service safeguards", () => {
   beforeEach(() => {
     providerMocks.ritual.mockReset();
     providerMocks.chat.mockReset();
+    providerMocks.instances.length = 0;
     providerMocks.ritual.mockResolvedValue({
       text: "Du behöver inte lösa resten i kväll. Låt matten vänta tills du har fått vila.",
       provider: "cloudflare-workers-ai",
@@ -54,6 +64,27 @@ describe("AI service safeguards", () => {
     expect(result.source).toBe("ai");
     expect(result.provider).toBe("cloudflare-workers-ai");
     expect(providerMocks.ritual).toHaveBeenCalledOnce();
+    expect(providerMocks.instances).toEqual([
+      {
+        model: "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
+        mode: "direct",
+      },
+    ]);
+  });
+
+  it("uses the 70B model for advanced generation", async () => {
+    const result = await generateRitualMessage(ritualInput, {
+      allowAi: true,
+      aiMode: "advanced",
+    });
+
+    expect(result.source).toBe("ai");
+    expect(providerMocks.instances).toEqual([
+      {
+        model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        mode: "advanced",
+      },
+    ]);
   });
 
   it("uses a reviewed ritual fallback when the daily limit is reached", async () => {
